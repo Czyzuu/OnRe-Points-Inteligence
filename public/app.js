@@ -7,6 +7,31 @@ const fmt = (n) => integer.format(Number(n));
 const short = (n) => compact.format(Number(n));
 const dateLabel = (date) => new Date(`${date}T00:00:00`).toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
 
+const sourceNames = {
+  wallet: "Wallet holdings", permissionlessBoost: "Permissionless boost",
+  onyc: "ONyc", usdg: "USDG", usdc: "USDC", usds: "USDS",
+  onycJitosol: "ONyc–JitoSOL", usdgOnyc: "USDG–ONyc", yt: "Yield token",
+  lp: "Liquidity position", senior: "Senior tranche", junior: "Junior tranche",
+  onycUsdc: "ONyc–USDC", referralBonus: "Referral bonus",
+  carrotLending: "Carrot lending", exponentVault: "Exponent vault"
+};
+const titleCase = (key) => sourceNames[key] || key.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("-", " ").replace(/^./, (letter) => letter.toUpperCase());
+
+function pointSources(breakdown, parents = []) {
+  if (!breakdown || typeof breakdown !== "object") return [];
+  return Object.entries(breakdown).flatMap(([key, value]) => {
+    if (value && typeof value === "object") return pointSources(value, [...parents, titleCase(key)]);
+    const points = Number(value);
+    return Number.isFinite(points) && points > 0 ? [{ label: [...parents, titleCase(key)].join(" · "), points }] : [];
+  }).sort((a, b) => b.points - a.points);
+}
+
+function renderPointSources(breakdown, totalPoints) {
+  const sources = pointSources(breakdown);
+  if (!sources.length) return `<section class="points-sources empty"><h3>POINTS SOURCES</h3><p>No source breakdown is available for this wallet.</p></section>`;
+  return `<section class="points-sources"><h3>POINTS SOURCES <span>${sources.length} ACTIVE</span></h3><div class="source-list">${sources.map(({ label, points }) => `<div class="source-row"><span title="${label}">${label}</span><i><b style="width:${Math.max(1, points / totalPoints * 100)}%"></b></i><strong>${fmt(points)}</strong><small>${pct.format(points / totalPoints)}</small></div>`).join("")}</div></section>`;
+}
+
 async function request(url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error((await response.json()).error || "Unable to load data");
@@ -81,7 +106,7 @@ $("wallet-search").addEventListener("submit", async (event) => {
     const wallet = await request(`/api/wallet?address=${encodeURIComponent(address)}`);
     const walletCount = Number($("wallet-count").textContent.replaceAll(",", ""));
     const percentile = walletCount ? wallet.rank / walletCount * 100 : 0;
-    result.innerHTML = `<div><span>WALLET</span><b class="wallet" title="${wallet.address}">${wallet.address}</b></div><div><span>RANK</span><strong>#${fmt(wallet.rank)}</strong></div><div><span>PERCENTILE</span><strong>TOP ${percentile < 0.01 ? "<0.01" : percentile.toFixed(2)}%</strong></div><div><span>TOTAL POINTS</span><strong>${fmt(wallet.totalPoints)}</strong></div><div><span>SHARE</span><strong>${pct.format(Number(wallet.totalPoints) / state.totalPoints)}</strong></div><button type="button" id="close-wallet" aria-label="Close wallet result">×</button>`;
+    result.innerHTML = `<div><span>WALLET</span><b class="wallet" title="${wallet.address}">${wallet.address}</b></div><div><span>RANK</span><strong>#${fmt(wallet.rank)}</strong></div><div><span>PERCENTILE</span><strong>TOP ${percentile < 0.01 ? "<0.01" : percentile.toFixed(2)}%</strong></div><div><span>TOTAL POINTS</span><strong>${fmt(wallet.totalPoints)}</strong></div><div><span>SHARE</span><strong>${pct.format(Number(wallet.totalPoints) / state.totalPoints)}</strong></div>${renderPointSources(wallet.pointsBreakdown, Number(wallet.totalPoints))}<button type="button" id="close-wallet" aria-label="Close wallet result">×</button>`;
     $("close-wallet").addEventListener("click", () => { result.hidden = true; });
   } catch (error) {
     result.classList.add("not-found");
