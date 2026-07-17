@@ -128,7 +128,7 @@ footer{height:90px;border-top:1px solid var(--line);display:flex;align-items:cen
 .thesis-grid strong{display:block;font-size:25px;letter-spacing:-.04em;margin:22px 0 4px}
 .thesis-grid small{color:var(--muted)}
 .disclaimer{margin:22px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
-(max-width:850px){.shell{padding:0 20px}
+@media(max-width:850px){.shell{padding:0 20px}
 .top-nav{order:3;width:100%;justify-content:center;border-top:1px solid var(--line);padding-top:10px}
 header{height:auto;min-height:92px;flex-wrap:wrap;padding:14px 0}
 .valuation-result{grid-template-columns:1fr}
@@ -143,25 +143,60 @@ header{height:auto;min-height:92px;flex-wrap:wrap;padding:14px 0}
 .latest{border-left:0;border-top:1px solid var(--line);padding:25px 0 0}
 .bands{grid-template-columns:repeat(2,1fr)}
 }
-@media(max-width:520px){header{height:74px}
+@media(max-width:520px){.shell{padding:0 14px}
+header{height:auto;min-height:0;padding:12px 0 0;gap:12px}
+.brand{gap:9px}
+.mark{width:34px;height:34px}
+.status{margin-left:auto}
+.top-nav{gap:18px;padding:10px 0}
+.top-nav a{font-size:9px}
 .status b{display:none}
-.hero{padding-bottom:36px}
+.hero{padding:42px 0 34px}
+h1{font-size:clamp(42px,14vw,58px);line-height:.94}
+.intro{margin-top:22px;font-size:14px;line-height:1.55}
 .metrics article{min-height:145px}
 .primary-card strong{font-size:39px}
-.panel{padding:20px}
-.bands{grid-template-columns:1fr}
+.metric-card strong{font-size:34px}
+.panel{padding:18px;margin-bottom:14px}
+.section-head{gap:16px}
+.section-head>span{max-width:120px;text-align:right;line-height:1.4}
+.section-head h2{font-size:22px}
+.chart{height:190px;gap:2px}
+.latest>div:first-of-type{margin-top:28px}
+.bands{display:flex;gap:12px;margin-left:-18px;margin-right:-18px;padding:0 18px 10px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding:18px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.bands::-webkit-scrollbar{display:none}
+.band{flex:0 0:calc(100vw - 52px);max-width:380px;min-width:280px;scroll-snap-align:start}
 .inputs{grid-template-columns:1fr}
+.calculator-grid{gap:26px}
+.valuation-result article{min-height:145px;padding:22px}
+.result-main strong{font-size:42px}
+.valuation-result article>strong{font-size:30px}
 .wallet-search>div{display:block}
+.wallet-search{padding:14px}
 .wallet-search input{width:100%}
 .wallet-search button{width:100%;height:42px}
 .wallet-result{grid-template-columns:1fr 1fr}
 .wallet-result>div{border-top:1px solid #12231f22}
 .wallet-result>div:first-child{grid-column:1/-1}
+.wallet-result>div:nth-child(2){border-left:0}
 .thesis-grid{grid-template-columns:1fr}
 .thesis-grid article{border-left:0;border-top:1px solid var(--line)}
 .leaderboard table th:nth-child(4),.leaderboard table td:nth-child(4){display:none}
+.leaderboard th,.leaderboard td{padding:13px 7px}
+.leaderboard-head{align-items:end}
+.leaderboard-head label{white-space:nowrap}
 .wallet{max-width:140px;overflow:hidden;text-overflow:ellipsis;display:block}
-.pagination{align-items:flex-start;gap:14px;flex-direction:column}
+.pagination{align-items:center;gap:14px;flex-direction:column;text-align:center}
+.pagination>span{width:100%}
+.pagination>div{width:100%;justify-content:center;gap:18px}
+.pagination button{width:40px;height:40px}
+.scenario-table{margin-left:-18px;margin-right:-18px;padding:0 11px}
+footer{height:auto;min-height:0;flex-direction:column;justify-content:center;gap:0;padding:24px 0;text-align:center}
+footer>span,footer>.creator{width:100%;justify-content:center;padding:11px 0}
+footer>.creator{order:1;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+footer>span:first-child{order:0}
+footer>span:last-child{order:2}
+.error{left:14px;right:14px;bottom:14px}
 }
 .points-sources{grid-column:1/-1;padding:20px!important;border-left:0!important;border-top:1px solid #12231f33;background:var(--card)}
 .points-sources h3{display:flex;justify-content:space-between;margin:0 0 15px;font:500 9px "DM Mono",monospace;letter-spacing:.1em}
