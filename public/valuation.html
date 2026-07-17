@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Scenario calculator for the potential value of OnRe points" />
+    <title>OnRe Point Value Calculator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <a class="brand" href="/"><span class="mark"><img src="/onre-logo.jpg" alt="" /></span><span>POINTS<br />INTELLIGENCE</span></a>
+        <nav class="top-nav"><a href="/">Dashboard</a><a class="active" href="/valuation.html">Point value</a><a href="https://app.onre.finance/earn/leaderboard?ref=4RZ70TC8V5D6" target="_blank" rel="noopener noreferrer">OnRe ↗</a></nav>
+        <div class="status"><i></i><span>LIVE DATA</span><b id="as-of">—</b></div>
+      </header>
+
+      <main>
+        <section class="hero valuation-hero">
+          <p class="eyebrow">SCENARIO LAB / ONRE</p>
+          <h1>What could a<br />point be <em>worth?</em></h1>
+          <p class="intro">A transparent scenario model—not a price prediction. Adjust valuation, allocation, and future dilution to stress-test the potential value of your points.</p>
+        </section>
+
+        <section class="valuation-result">
+          <article class="result-main">
+            <div class="card-label">ESTIMATED VALUE / POINT <span>SELECTED SCENARIO</span></div>
+            <strong id="point-value">—</strong>
+            <small id="value-per-million">— per 1M points</small>
+          </article>
+          <article><span>LIVE POINT SUPPLY</span><strong id="live-supply">—</strong><small id="supply-multiple">—</small></article>
+          <article><span>PROJECTED DENOMINATOR</span><strong id="projected-supply">—</strong><small id="dilution-impact">—</small></article>
+        </section>
+
+        <section class="panel calculator-grid">
+          <div>
+            <div class="section-head"><div><p class="eyebrow">ASSUMPTIONS</p><h2>Build a scenario</h2></div><span>ALL VALUES EDITABLE</span></div>
+            <div class="inputs">
+              <label><span>Implied token valuation</span><div><b>$</b><input id="valuation" type="number" value="400" min="0" step="25" /><em>M</em></div></label>
+              <label><span>Allocation to point holders</span><div><input id="allocation" type="number" value="1" min="0" step="0.1" /><em>%</em></div></label>
+              <label><span>Your point balance</span><div><input id="holding" type="number" value="1000000" min="0" step="100000" /></div></label>
+              <label><span>Project dilution forward</span><div><input id="days" type="number" value="0" min="0" step="7" /><em>DAYS</em></div></label>
+              <label><span>Daily new points</span><div><input id="daily-rate" type="number" min="0" step="1000000" /><em>PTS</em></div><small>Defaults to the latest 7-day average.</small></label>
+            </div>
+          </div>
+          <aside class="formula-card">
+            <p class="eyebrow">FORMULA</p>
+            <div><span>Valuation × allocation</span><hr /><span>Current points + projected inflation</span></div>
+            <dl>
+              <dt>Reward pool</dt><dd id="reward-pool">—</dd>
+              <dt>Your estimated value</dt><dd id="holding-value">—</dd>
+              <dt>Supply added</dt><dd id="added-supply">—</dd>
+            </dl>
+          </aside>
+        </section>
+
+        <section class="panel">
+          <div class="section-head"><div><p class="eyebrow">SENSITIVITY</p><h2>Value per point by scenario</h2></div><span>LIVE SUPPLY + SELECTED DILUTION</span></div>
+          <div class="table-wrap scenario-table"><table><thead><tr><th>VALUATION</th><th class="right">0.5% ALLOCATION</th><th class="right">1.0% ALLOCATION</th><th class="right">2.0% ALLOCATION</th></tr></thead><tbody id="scenario-body"></tbody></table></div>
+        </section>
+
+        <section class="panel thesis">
+          <div><p class="eyebrow">REFERENCE MODEL</p><h2>March 11 thesis vs. now</h2></div>
+          <div class="thesis-grid">
+            <article><span>MARCH ASSUMPTION</span><strong>65B</strong><small>estimated final points</small></article>
+            <article><span>LIVE SUPPLY</span><strong id="thesis-live">—</strong><small id="thesis-growth">—</small></article>
+            <article><span>$400M / 1% THEN</span><strong>$0.0000615</strong><small>per point at 65B</small></article>
+            <article><span>$400M / 1% NOW</span><strong id="thesis-now">—</strong><small>using current live supply</small></article>
+          </div>
+          <p class="disclaimer">This calculator adapts DeFiSolar’s public scenario framework. OnRe has not announced a token, valuation, point conversion, allocation, snapshot date, or entitlement. Results are hypothetical and should not be treated as financial advice.</p>
+        </section>
+      </main>
+      <footer><span>INDEPENDENT ONRE ANALYTICS</span><a class="creator" href="https://x.com/0xCzyzu" target="_blank" rel="noopener noreferrer" aria-label="Made by Czyzu on X"><span>MADE BY CZYZU</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg></a><span>MODEL SOURCE: DEFISOLAR · LIVE DATA: ONRE</span></footer>
+    </div>
+    <div id="error" class="error" role="alert" hidden></div>
+    <script type="module" src="/valuation.js"></script>
+  </body>
+</html>

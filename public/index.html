@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Independent analytics dashboard for OnRe points" />
+    <title>OnRe Points Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <a class="brand" href="/" aria-label="OnRe Points home"><span class="mark"><img src="/onre-logo.jpg" alt="" /></span><span>POINTS<br />INTELLIGENCE</span></a>
+        <nav class="top-nav"><a class="active" href="/">Dashboard</a><a href="/valuation.html">Point value</a><a href="https://app.onre.finance/earn/leaderboard?ref=4RZ70TC8V5D6" target="_blank" rel="noopener noreferrer">OnRe ↗</a></nav>
+        <div class="status"><i></i><span>LIVE DATA</span><b id="as-of">—</b></div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <p class="eyebrow">NETWORK OVERVIEW / ONRE</p>
+          <h1>Points, ranked<br />and <em>decoded.</em></h1>
+          <p class="intro">A clear view of reward issuance, daily velocity, and wallet distribution across the OnRe ecosystem.</p>
+        </section>
+
+        <section class="metrics" aria-label="Point totals">
+          <article class="primary-card">
+            <div class="card-label">TOTAL POINTS ISSUED <span>ALL TIME</span></div>
+            <strong id="total-points">—</strong>
+            <div class="trend"><span id="today-growth">—</span> issued today</div>
+          </article>
+          <article class="metric-card"><span>PARTICIPATING WALLETS</span><strong id="wallet-count">—</strong><small>Eligible addresses</small></article>
+          <article class="metric-card"><span>AVG. POINTS / WALLET</span><strong id="avg-points">—</strong><small>Across all participants</small></article>
+        </section>
+
+        <section class="panel split">
+          <div>
+            <div class="section-head"><div><p class="eyebrow">ISSUANCE VELOCITY</p><h2>Daily incrementals</h2></div><span>DAILY HISTORY FROM JUN 18</span></div>
+            <div id="chart" class="chart" aria-label="Daily points increment chart"></div>
+            <div class="chart-axis"><span id="chart-start">—</span><span id="chart-end">—</span></div>
+          </div>
+          <aside class="latest">
+            <p class="eyebrow">LATEST DAILY CHANGE</p>
+            <strong id="latest-growth">—</strong>
+            <span id="latest-date">—</span>
+            <div><small>PERIOD AVERAGE</small><b id="growth-average">—</b></div>
+            <div><small>PERIOD PEAK</small><b id="growth-peak">—</b></div>
+            <div><small>PRE-HISTORY AGGREGATE</small><b id="prehistory-total">—</b></div>
+          </aside>
+          <p class="history-note">OnRe’s first analytics snapshot on June 17 contains all points issued before daily history began. It is shown separately and excluded from the daily chart.</p>
+        </section>
+
+        <section class="panel distribution">
+          <div class="section-head"><div><p class="eyebrow">DISTRIBUTION</p><h2>Wallet percentile bands</h2></div><span>BY LEADERBOARD RANK</span></div>
+          <div id="bands" class="bands"></div>
+          <p class="note">Bands are cumulative and calculated from the current ranked wallet count. The cutoff is the point balance of the final wallet inside each band.</p>
+        </section>
+
+        <section class="panel leaderboard">
+          <div class="section-head leaderboard-head">
+            <div><p class="eyebrow">FULL DATASET</p><h2>Points leaderboard</h2></div>
+            <label>ROWS <select id="page-size"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></label>
+          </div>
+          <form id="wallet-search" class="wallet-search">
+            <label for="wallet-input">FIND YOUR WALLET</label>
+            <div><input id="wallet-input" type="search" autocomplete="off" spellcheck="false" placeholder="Enter Solana wallet address" /><button type="submit">Search <span>→</span></button></div>
+          </form>
+          <div id="wallet-result" class="wallet-result" hidden></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>RANK</th><th>WALLET</th><th class="right">TOTAL POINTS</th><th class="right">SHARE</th></tr></thead><tbody id="leaderboard-body"></tbody></table>
+          </div>
+          <div class="pagination">
+            <span id="page-range">—</span>
+            <div><button id="prev" aria-label="Previous page">←</button><span id="page-label">—</span><button id="next" aria-label="Next page">→</button></div>
+          </div>
+        </section>
+      </main>
+      <footer><span>INDEPENDENT ONRE ANALYTICS</span><a class="creator" href="https://x.com/0xCzyzu" target="_blank" rel="noopener noreferrer" aria-label="Made by Czyzu on X"><span>MADE BY CZYZU</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg></a><span>DATA: ONRE REWARDS API</span></footer>
+    </div>
+    <div id="error" class="error" role="alert" hidden></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
