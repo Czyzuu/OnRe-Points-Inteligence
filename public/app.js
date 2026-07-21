@@ -101,43 +101,22 @@ function closeSocialCard() {
   document.querySelector(".share-card-button")?.focus();
 }
 
-function drawSocialCard(wallet) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1200;
-  canvas.height = 675;
-  const ctx = canvas.getContext("2d");
-  const topSource = wallet.topSource;
-  const light = state.socialTheme === "light";
-  const colors = light
-    ? { background: "#f4f3ec", text: "#12231f", muted: "#66736e", accent: "#153c33", line: "#12231f22" }
-    : { background: "#153c33", text: "#ffffff", muted: "#a9bbb6", accent: "#c8ff4b", line: "#ffffff22" };
-  ctx.fillStyle = colors.background; ctx.fillRect(0, 0, 1200, 675);
-  ctx.fillStyle = "#c8ff4b"; ctx.fillRect(0, 0, 18, 675);
-  ctx.fillStyle = colors.line; ctx.fillRect(650, 0, 1, 675);
-  ctx.fillStyle = colors.accent; ctx.font = "600 22px monospace"; ctx.fillText("ONRE POINTS INTELLIGENCE", 70, 65);
-  ctx.fillStyle = colors.muted; ctx.font = "18px monospace"; ctx.textAlign = "right"; ctx.fillText(`MY ONRE STATS  ${shortWallet(wallet.address)}`, 1130, 65);
-  ctx.textAlign = "left"; ctx.fillStyle = colors.muted; ctx.font = "18px monospace"; ctx.fillText("LEADERBOARD RANK", 70, 160);
-  ctx.fillStyle = colors.text; ctx.font = "600 112px Manrope, sans-serif"; ctx.fillText(`#${fmt(wallet.rank)}`, 64, 275);
-  ctx.fillStyle = colors.accent; ctx.font = "600 28px monospace"; ctx.fillText(percentileLabel(wallet.rank), 70, 320);
-  ctx.fillStyle = colors.muted; ctx.font = "18px monospace"; ctx.fillText("TOP POINTS SOURCE", 700, 160);
-  ctx.fillStyle = colors.text; ctx.font = "600 40px Manrope, sans-serif"; ctx.fillText(topSource.label.slice(0, 25), 700, 215);
-  ctx.fillStyle = colors.accent; ctx.font = "600 24px monospace"; ctx.fillText(`${fmt(topSource.points)} POINTS`, 700, 258);
-  ctx.fillStyle = colors.muted; ctx.font = "18px monospace"; ctx.fillText("TOTAL POINTS", 700, 360);
-  ctx.fillStyle = colors.text; ctx.font = "600 62px Manrope, sans-serif"; ctx.fillText(fmt(wallet.totalPoints), 695, 435);
-  ctx.strokeStyle = colors.line; ctx.beginPath(); ctx.moveTo(70, 550); ctx.lineTo(1130, 550); ctx.stroke();
-  ctx.fillStyle = colors.muted; ctx.font = "17px monospace"; ctx.fillText("POINTS, RANKED AND DECODED.", 70, 610);
-  ctx.textAlign = "right"; ctx.fillStyle = colors.accent; ctx.fillText("SHIPPED BY 0xCzyzu", 1130, 610);
-  return canvas;
-}
-
 async function copySocialCard() {
   const status = $("copy-status");
   try {
-    if (!navigator.clipboard || typeof ClipboardItem === "undefined") throw new Error("Image copy is not supported in this browser");
-    const image = new Promise((resolve, reject) => drawSocialCard(state.socialWallet).toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("Could not create card image"));
-    }, "image/png"));
+    if (!navigator.clipboard || typeof ClipboardItem === "undefined" || !window.html2canvas) throw new Error("Image copy is not supported in this browser");
+    const card = $("social-card");
+    const image = document.fonts.ready
+      .then(() => window.html2canvas(card, {
+        backgroundColor: null,
+        logging: false,
+        scale: 1200 / card.getBoundingClientRect().width,
+        useCORS: true
+      }))
+      .then((canvas) => new Promise((resolve, reject) => canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Could not create card image"));
+      }, "image/png")));
     await navigator.clipboard.write([new ClipboardItem({ "image/png": image })]);
     status.textContent = "Card copied — ready to paste.";
   } catch (error) {
