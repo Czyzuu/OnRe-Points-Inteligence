@@ -81,6 +81,13 @@ const percentileLabel = (rank) => {
 };
 
 const shortWallet = (address) => `${address.slice(0, 5)}…${address.slice(-5)}`;
+const socialCardWidth = 732;
+
+function syncSocialCardScale() {
+  const frame = $("social-card-frame");
+  const width = frame.getBoundingClientRect().width;
+  if (width) $("social-card").style.setProperty("--card-scale", Math.min(1, width / socialCardWidth));
+}
 
 function openSocialCard(wallet) {
   const topSource = pointSources(wallet.pointsBreakdown)[0] || { label: "No source data", points: 0 };
@@ -92,6 +99,7 @@ function openSocialCard(wallet) {
   $("copy-status").textContent = "Copy the card as an image and share it anywhere.";
   $("social-card-modal").hidden = false;
   document.body.classList.add("modal-open");
+  syncSocialCardScale();
   $("copy-social-card").focus();
 }
 
@@ -109,9 +117,17 @@ async function copySocialCard() {
     const image = document.fonts.ready
       .then(() => window.html2canvas(card, {
         backgroundColor: null,
+        height: socialCardWidth * 9 / 16,
         logging: false,
-        scale: 1200 / card.getBoundingClientRect().width,
-        useCORS: true
+        onclone: (documentClone) => {
+          const clonedCard = documentClone.getElementById("social-card");
+          clonedCard.style.setProperty("--card-scale", 1);
+          clonedCard.parentElement.style.width = `${socialCardWidth}px`;
+          clonedCard.parentElement.style.overflow = "visible";
+        },
+        scale: 1200 / socialCardWidth,
+        useCORS: true,
+        width: socialCardWidth
       }))
       .then((canvas) => new Promise((resolve, reject) => canvas.toBlob((blob) => {
         if (blob) resolve(blob);
@@ -125,6 +141,7 @@ async function copySocialCard() {
 }
 
 document.querySelectorAll("[data-close-social]").forEach((button) => button.addEventListener("click", closeSocialCard));
+new ResizeObserver(syncSocialCardScale).observe($("social-card-frame"));
 document.querySelectorAll('input[name="card-theme"]').forEach((input) => input.addEventListener("change", (event) => {
   state.socialTheme = event.target.value;
   $("social-card").dataset.theme = state.socialTheme;
