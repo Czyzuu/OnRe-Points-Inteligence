@@ -1,4 +1,4 @@
-const state = { page: 0, size: 25, totalPoints: 0 };
+const state = { page: 0, size: 25, totalPoints: 0, walletCount: 0, socialWallet: null, socialTheme: "dark" };
 const $ = (id) => document.getElementById(id);
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const integer = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
@@ -46,6 +46,7 @@ function showError(error) {
 function renderSummary({ overview, growth, percentileBands }) {
   const points = overview.points;
   state.totalPoints = Number(points.totalPointsIssued);
+  state.walletCount = Number(points.walletCount);
   const first = growth[0];
   const firstIsAggregate = Number(first.dailyTotalGrowth) === Number(first.totalPointsIssued);
   const dailyGrowth = firstIsAggregate ? growth.slice(1) : growth;
@@ -73,6 +74,85 @@ function renderSummary({ overview, growth, percentileBands }) {
 
   $("bands").innerHTML = percentileBands.map((band) => `<article class="band"><span>TOP ${band.percentile}%</span><strong>${fmt(band.rank)}</strong><small>wallets · ranks 1–${fmt(band.rank)}</small><span class="cutoff">CUTOFF POINTS<b>${band.thresholdPoints == null ? "—" : fmt(band.thresholdPoints)}</b></span></article>`).join("");
 }
+
+const percentileLabel = (rank) => {
+  const value = state.walletCount ? Number(rank) / state.walletCount * 100 : 0;
+  return `TOP ${value < 0.01 ? "<0.01" : value.toFixed(2)}%`;
+};
+
+const shortWallet = (address) => `${address.slice(0, 5)}…${address.slice(-5)}`;
+
+function openSocialCard(wallet) {
+  const topSource = pointSources(wallet.pointsBreakdown)[0] || { label: "No source data", points: 0 };
+  state.socialWallet = { ...wallet, topSource };
+  state.socialTheme = "dark";
+  document.querySelector('input[name="card-theme"][value="dark"]').checked = true;
+  $("social-card").dataset.theme = state.socialTheme;
+  $("social-card").innerHTML = `<div class="social-card-top"><span class="social-brand"><i><img src="/onre-logo.jpg" alt="" /></i>ONRE POINTS<br />INTELLIGENCE</span><span>MY ONRE STATS<br /><b>${shortWallet(wallet.address)}</b></span></div><div class="social-rank"><span>LEADERBOARD RANK</span><strong>#${fmt(wallet.rank)}</strong><em>${percentileLabel(wallet.rank)}</em></div><div class="social-stats"><div><span>TOP POINTS SOURCE</span><strong>${topSource.label}</strong><small>${fmt(topSource.points)} POINTS</small></div><div><span>TOTAL POINTS</span><strong>${fmt(wallet.totalPoints)}</strong><small>ONRE REWARDS</small></div></div><div class="social-card-foot"><span>POINTS, RANKED AND DECODED.</span><b>SHIPPED BY 0xCzyzu</b></div>`;
+  $("copy-status").textContent = "Copy the card as an image and share it anywhere.";
+  $("social-card-modal").hidden = false;
+  document.body.classList.add("modal-open");
+  $("copy-social-card").focus();
+}
+
+function closeSocialCard() {
+  $("social-card-modal").hidden = true;
+  document.body.classList.remove("modal-open");
+  document.querySelector(".share-card-button")?.focus();
+}
+
+function drawSocialCard(wallet) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 675;
+  const ctx = canvas.getContext("2d");
+  const topSource = wallet.topSource;
+  const light = state.socialTheme === "light";
+  const colors = light
+    ? { background: "#f4f3ec", text: "#12231f", muted: "#66736e", accent: "#153c33", line: "#12231f22" }
+    : { background: "#153c33", text: "#ffffff", muted: "#a9bbb6", accent: "#c8ff4b", line: "#ffffff22" };
+  ctx.fillStyle = colors.background; ctx.fillRect(0, 0, 1200, 675);
+  ctx.fillStyle = "#c8ff4b"; ctx.fillRect(0, 0, 18, 675);
+  ctx.fillStyle = colors.line; ctx.fillRect(650, 0, 1, 675);
+  ctx.fillStyle = colors.accent; ctx.font = "600 22px monospace"; ctx.fillText("ONRE POINTS INTELLIGENCE", 70, 65);
+  ctx.fillStyle = colors.muted; ctx.font = "18px monospace"; ctx.textAlign = "right"; ctx.fillText(`MY ONRE STATS  ${shortWallet(wallet.address)}`, 1130, 65);
+  ctx.textAlign = "left"; ctx.fillStyle = colors.muted; ctx.font = "18px monospace"; ctx.fillText("LEADERBOARD RANK", 70, 160);
+  ctx.fillStyle = colors.text; ctx.font = "600 112px Manrope, sans-serif"; ctx.fillText(`#${fmt(wallet.rank)}`, 64, 275);
+  ctx.fillStyle = colors.accent; ctx.font = "600 28px monospace"; ctx.fillText(percentileLabel(wallet.rank), 70, 320);
+  ctx.fillStyle = colors.muted; ctx.font = "18px monospace"; ctx.fillText("TOP POINTS SOURCE", 700, 160);
+  ctx.fillStyle = colors.text; ctx.font = "600 40px Manrope, sans-serif"; ctx.fillText(topSource.label.slice(0, 25), 700, 215);
+  ctx.fillStyle = colors.accent; ctx.font = "600 24px monospace"; ctx.fillText(`${fmt(topSource.points)} POINTS`, 700, 258);
+  ctx.fillStyle = colors.muted; ctx.font = "18px monospace"; ctx.fillText("TOTAL POINTS", 700, 360);
+  ctx.fillStyle = colors.text; ctx.font = "600 62px Manrope, sans-serif"; ctx.fillText(fmt(wallet.totalPoints), 695, 435);
+  ctx.strokeStyle = colors.line; ctx.beginPath(); ctx.moveTo(70, 550); ctx.lineTo(1130, 550); ctx.stroke();
+  ctx.fillStyle = colors.muted; ctx.font = "17px monospace"; ctx.fillText("POINTS, RANKED AND DECODED.", 70, 610);
+  ctx.textAlign = "right"; ctx.fillStyle = colors.accent; ctx.fillText("SHIPPED BY 0xCzyzu", 1130, 610);
+  return canvas;
+}
+
+async function copySocialCard() {
+  const status = $("copy-status");
+  try {
+    if (!navigator.clipboard || typeof ClipboardItem === "undefined") throw new Error("Image copy is not supported in this browser");
+    const image = new Promise((resolve, reject) => drawSocialCard(state.socialWallet).toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Could not create card image"));
+    }, "image/png"));
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": image })]);
+    status.textContent = "Card copied — ready to paste.";
+  } catch (error) {
+    status.textContent = `${error.message}. Try a current Chrome, Edge, or Safari browser.`;
+  }
+}
+
+document.querySelectorAll("[data-close-social]").forEach((button) => button.addEventListener("click", closeSocialCard));
+document.querySelectorAll('input[name="card-theme"]').forEach((input) => input.addEventListener("change", (event) => {
+  state.socialTheme = event.target.value;
+  $("social-card").dataset.theme = state.socialTheme;
+  $("copy-status").textContent = `${titleCase(state.socialTheme)} card selected — copy it as an image.`;
+}));
+$("copy-social-card").addEventListener("click", copySocialCard);
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !$("social-card-modal").hidden) closeSocialCard(); });
 
 async function loadLeaderboard() {
   const tbody = $("leaderboard-body");
@@ -104,10 +184,9 @@ $("wallet-search").addEventListener("submit", async (event) => {
   result.innerHTML = `<span class="search-loading">Looking up wallet…</span>`;
   try {
     const wallet = await request(`/api/wallet?address=${encodeURIComponent(address)}`);
-    const walletCount = Number($("wallet-count").textContent.replaceAll(",", ""));
-    const percentile = walletCount ? wallet.rank / walletCount * 100 : 0;
-    result.innerHTML = `<div><span>WALLET</span><b class="wallet" title="${wallet.address}">${wallet.address}</b></div><div><span>RANK</span><strong>#${fmt(wallet.rank)}</strong></div><div><span>PERCENTILE</span><strong>TOP ${percentile < 0.01 ? "<0.01" : percentile.toFixed(2)}%</strong></div><div><span>TOTAL POINTS</span><strong>${fmt(wallet.totalPoints)}</strong></div><div><span>SHARE</span><strong>${pct.format(Number(wallet.totalPoints) / state.totalPoints)}</strong></div>${renderPointSources(wallet.pointsBreakdown, Number(wallet.totalPoints))}<button type="button" id="close-wallet" aria-label="Close wallet result">×</button>`;
+    result.innerHTML = `<div class="wallet-identity"><span>WALLET <button type="button" id="close-wallet" aria-label="Close wallet result">×</button></span><b class="wallet" title="${wallet.address}">${wallet.address}</b></div><div><span>RANK</span><strong>#${fmt(wallet.rank)}</strong></div><div><span>PERCENTILE</span><strong>${percentileLabel(wallet.rank)}</strong></div><div><span>TOTAL POINTS</span><strong>${fmt(wallet.totalPoints)}</strong></div><div><span>NETWORK SHARE</span><strong>${pct.format(Number(wallet.totalPoints) / state.totalPoints)}</strong></div><div class="wallet-share"><span>SHARE RESULTS</span><button type="button" class="share-card-button">Social card <b>↗</b></button></div>${renderPointSources(wallet.pointsBreakdown, Number(wallet.totalPoints))}`;
     $("close-wallet").addEventListener("click", () => { result.hidden = true; });
+    result.querySelector(".share-card-button").addEventListener("click", () => openSocialCard(wallet));
   } catch (error) {
     result.classList.add("not-found");
     result.innerHTML = `<span>${error.message}</span>`;

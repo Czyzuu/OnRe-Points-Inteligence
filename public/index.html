@@ -80,6 +80,25 @@
       </main>
       <footer><span>INDEPENDENT ONRE ANALYTICS</span><a class="creator" href="https://x.com/0xCzyzu" target="_blank" rel="noopener noreferrer" aria-label="Made by Czyzu on X"><span>MADE BY CZYZU</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.657l-5.214-6.817-5.967 6.817H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/></svg></a><span>DATA: ONRE REWARDS API</span></footer>
     </div>
+    <div id="social-card-modal" class="social-modal" hidden>
+      <button class="social-backdrop" type="button" data-close-social aria-label="Close social card"></button>
+      <section class="social-dialog" role="dialog" aria-modal="true" aria-labelledby="social-dialog-title">
+        <div class="social-dialog-head">
+          <div><p class="eyebrow">SHARE YOUR STATS</p><h2 id="social-dialog-title">Social card</h2></div>
+          <button class="social-close" type="button" data-close-social aria-label="Close social card">×</button>
+        </div>
+        <fieldset class="theme-picker">
+          <legend>CARD THEME</legend>
+          <label><input type="radio" name="card-theme" value="dark" checked /><span>Dark</span></label>
+          <label><input type="radio" name="card-theme" value="light" /><span>Light</span></label>
+        </fieldset>
+        <div id="social-card" class="social-card"></div>
+        <div class="social-actions">
+          <p id="copy-status" role="status" aria-live="polite">Copy the card as an image and share it anywhere.</p>
+          <button id="copy-social-card" type="button">Copy card <span>↗</span></button>
+        </div>
+      </section>
+    </div>
     <div id="error" class="error" role="alert" hidden></div>
     <script type="module" src="/app.js"></script>
   </body>
