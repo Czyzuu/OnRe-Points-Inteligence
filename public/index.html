@@ -15,7 +15,7 @@
     <div class="shell">
       <header>
         <a class="brand" href="/" aria-label="OnRe Points home"><span class="mark"><img src="/onre-logo.jpg" alt="" /></span><span>POINTS<br />INTELLIGENCE</span></a>
-        <nav class="top-nav"><a class="active" href="/">Dashboard</a><a href="/valuation.html">Point value</a><a href="https://app.onre.finance/earn/leaderboard?ref=4RZ70TC8V5D6" target="_blank" rel="noopener noreferrer">OnRe ↗</a></nav>
+        <nav class="top-nav"><a class="active" href="/">Dashboard</a><a href="/valuation.html">Point value</a><a href="/simulator.html">Simulator</a><a href="https://app.onre.finance/earn/leaderboard?ref=4RZ70TC8V5D6" target="_blank" rel="noopener noreferrer">OnRe ↗</a></nav>
         <div class="status"><i></i><span>LIVE DATA</span><b id="as-of">—</b></div>
       </header>
 
@@ -62,7 +62,7 @@
         <section class="panel leaderboard">
           <div class="section-head leaderboard-head">
             <div><p class="eyebrow">FULL DATASET</p><h2>Points leaderboard</h2></div>
-            <label>ROWS <select id="page-size"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></label>
+            <div class="leaderboard-tools"><button id="export-leaderboard" class="export-button" type="button">Export CSV <span>↓</span></button><label>ROWS <select id="page-size"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></label></div>
           </div>
           <form id="wallet-search" class="wallet-search">
             <label for="wallet-input">FIND YOUR WALLET</label>

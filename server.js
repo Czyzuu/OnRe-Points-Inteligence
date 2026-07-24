@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,11 +9,15 @@ const API = "https://rewards.api.onre.finance/api/v1";
 const PUBLIC = fileURLToPath(new URL("./public", import.meta.url));
 const CACHE_MS = 60_000;
 const cache = new Map();
+const SIMULATOR_COOKIE = "onre_simulator_session";
+const SIMULATOR_MAX_AGE = 60 * 60 * 24 * 7;
 
 const types = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".csv": "text/csv; charset=utf-8",
   ".svg": "image/svg+xml"
 };
 
@@ -20,7 +25,11 @@ async function getJson(path) {
   const cached = cache.get(path);
   if (cached && Date.now() - cached.time < CACHE_MS) return cached.data;
   const response = await fetch(`${API}${path}`, { headers: { accept: "application/json" } });
-  if (!response.ok) throw new Error(`OnRe API returned ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(`OnRe API returned ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   const data = await response.json();
   cache.set(path, { time: Date.now(), data });
   return data;
@@ -31,9 +40,37 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
+const signSimulatorSession = (value, password) => createHmac("sha256", password).update(value).digest("hex");
+function hasSimulatorSession(req, password) {
+  const cookie = String(req.headers.cookie || "").split(";").map((part) => part.trim()).find((part) => part.startsWith(`${SIMULATOR_COOKIE}=`));
+  if (!cookie) return false;
+  const [expires, signature] = decodeURIComponent(cookie.slice(SIMULATOR_COOKIE.length + 1)).split(".");
+  if (!expires || !signature || Number(expires) < Date.now()) return false;
+  const expected = signSimulatorSession(expires, password);
+  return signature.length === expected.length && timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+}
+
+async function readRequestJson(req) {
+  let body = "";
+  for await (const chunk of req) body += chunk;
+  try { return JSON.parse(body || "{}"); } catch { return {}; }
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    if (url.pathname === "/api/simulator-auth") {
+      const configuredPassword = process.env.SIMULATOR_PASSWORD;
+      if (!configuredPassword) return json(res, 503, { error: "Simulator access is not configured" });
+      if (req.method === "GET") return json(res, hasSimulatorSession(req, configuredPassword) ? 200 : 401, { authenticated: hasSimulatorSession(req, configuredPassword) });
+      if (req.method !== "POST") return json(res, 405, { error: "Method not allowed" });
+      const supplied = String((await readRequestJson(req)).password || "");
+      const valid = supplied.length === configuredPassword.length && timingSafeEqual(Buffer.from(supplied), Buffer.from(configuredPassword));
+      if (!valid) return json(res, 401, { error: "Incorrect password" });
+      const expires = String(Date.now() + SIMULATOR_MAX_AGE * 1000);
+      res.setHeader("Set-Cookie", `${SIMULATOR_COOKIE}=${encodeURIComponent(`${expires}.${signSimulatorSession(expires, configuredPassword)}`)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SIMULATOR_MAX_AGE}`);
+      return json(res, 200, { authenticated: true });
+    }
     if (url.pathname === "/api/summary") {
       const [overview, growth] = await Promise.all([
         getJson("/analytics/overview"),
@@ -79,7 +116,8 @@ const server = http.createServer(async (req, res) => {
     res.end(content);
   } catch (error) {
     if (error?.code === "ENOENT") return json(res, 404, { error: "Not found" });
-    json(res, 502, { error: error.message || "Upstream request failed" });
+    const status = error.status === 429 ? 429 : 502;
+    json(res, status, { error: status === 429 ? "OnRe rate limit reached" : error.message || "Upstream request failed" });
   }
 });
 

@@ -34,7 +34,11 @@ function renderPointSources(breakdown, totalPoints) {
 
 async function request(url) {
   const response = await fetch(url);
-  if (!response.ok) throw new Error((await response.json()).error || "Unable to load data");
+  if (!response.ok) {
+    const error = new Error((await response.json()).error || "Unable to load data");
+    error.status = response.status;
+    throw error;
+  }
   return response.json();
 }
 
@@ -82,11 +86,70 @@ const percentileLabel = (rank) => {
 
 const shortWallet = (address) => `${address.slice(0, 5)}…${address.slice(-5)}`;
 const socialCardWidth = 732;
+const csvCell = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function syncSocialCardScale() {
   const frame = $("social-card-frame");
   const width = frame.getBoundingClientRect().width;
   if (width) $("social-card").style.setProperty("--card-scale", Math.min(1, width / socialCardWidth));
+}
+
+async function exportPage(page, totalPages) {
+  const button = $("export-leaderboard");
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (page > 0 || attempt > 0) await wait(attempt > 0 ? Math.min(30_000, 5_000 * 2 ** (attempt - 1)) : 1_100);
+    try {
+      return await request(`/api/leaderboard?page=${page}&size=100`);
+    } catch (error) {
+      if (attempt === 4) throw error;
+      const retrySeconds = Math.min(30, 5 * 2 ** attempt);
+      button.textContent = `Rate limited · retry in ${retrySeconds}s`;
+    }
+  }
+  throw new Error(`Unable to export page ${page + 1} of ${totalPages}`);
+}
+
+async function exportLeaderboard() {
+  const button = $("export-leaderboard");
+  button.disabled = true;
+  try {
+    button.textContent = "Preparing export…";
+    const firstPage = await exportPage(0, 1);
+    const rows = [...firstPage.content];
+    const totalPages = Number(firstPage.totalPages);
+
+    for (let page = 1; page < totalPages; page++) {
+      const result = await exportPage(page, totalPages);
+      rows.push(...result.content);
+      button.textContent = `Exporting ${page + 1} / ${totalPages}`;
+    }
+
+    rows.sort((a, b) => Number(a.rank) - Number(b.rank));
+    const exportedAt = new Date().toISOString();
+    const headings = ["rank", "wallet_address", "total_points", "percentile", "network_share", "top_source", "top_source_points", "exported_at"];
+    const lines = rows.map((wallet) => {
+      const source = pointSources(wallet.pointsBreakdown)[0] || { label: "", points: "" };
+      const percentile = state.walletCount ? Number(wallet.rank) / state.walletCount * 100 : "";
+      const share = state.totalPoints ? Number(wallet.totalPoints) / state.totalPoints * 100 : "";
+      return [wallet.rank, wallet.address, wallet.totalPoints, percentile, share, source.label, source.points, exportedAt].map(csvCell).join(",");
+    });
+    const blob = new Blob(["\uFEFF", headings.map(csvCell).join(","), "\n", lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `onre-leaderboard-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    button.textContent = `Exported ${fmt(rows.length)} wallets`;
+  } catch (error) {
+    button.textContent = "Export CSV ↓";
+    showError(error);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function openSocialCard(wallet) {
@@ -169,6 +232,7 @@ async function loadLeaderboard() {
 $("prev").addEventListener("click", () => { if (state.page > 0) { state.page--; loadLeaderboard(); } });
 $("next").addEventListener("click", () => { state.page++; loadLeaderboard(); });
 $("page-size").addEventListener("change", (event) => { state.size = Number(event.target.value); state.page = 0; loadLeaderboard(); });
+$("export-leaderboard").addEventListener("click", exportLeaderboard);
 
 $("wallet-search").addEventListener("submit", async (event) => {
   event.preventDefault();

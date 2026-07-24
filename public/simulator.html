@@ -1,0 +1,57 @@
+<!doctype html><html lang="en"><head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="description" content="OnRe leaderboard strategy simulator"/><title>OnRe Strategy Simulator</title>
+  <link rel="icon" type="image/jpeg" href="/onre-logo.jpg"/><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/simulator.css"/>
+</head><body class="simulator-locked"><div class="shell">
+  <header><a class="brand" href="/"><span class="mark"><img src="/onre-logo.jpg" alt=""/></span><span>POINTS<br/>INTELLIGENCE</span></a>
+    <nav class="top-nav"><a href="/">Dashboard</a><a href="/valuation.html">Point value</a><a class="active" href="/simulator.html">Simulator</a><a href="https://app.onre.finance/earn/leaderboard?ref=4RZ70TC8V5D6" target="_blank" rel="noopener noreferrer">OnRe ↗</a></nav>
+    <div class="status"><i></i><span>MODEL</span><b id="model-status">LOADING</b></div></header>
+  <main>
+    <section class="hero simulator-hero"><p class="eyebrow">LEADERBOARD / STRATEGY MODEL</p><h1>Simulate your<br/><em>next rank.</em></h1><p class="intro">Project an editable points strategy against a moving leaderboard built from observed wallet velocities.</p></section>
+    <aside class="model-warning"><b>EXPLORATORY MODEL</b><span>OnRe points are credited daily, so the change between these consecutive-date snapshots is modeled as one daily accrual. Projections still assume wallet earning rates remain stationary and may change as positions, multipliers, pricing, leverage, and behavior change.</span></aside>
+
+    <section class="panel simulator-layout">
+      <form id="simulator-form" class="simulator-form"><div class="section-head"><div><p class="eyebrow">QUICK SIMULATOR</p><h2>Choose your strategy</h2></div></div>
+        <div class="sim-inputs primary-inputs">
+          <label><span>INVESTMENT USD</span><input name="investmentUsd" type="number" value="100" min="0" step="1"/></label>
+          <label><span>STRATEGY</span><select name="strategy"><option value="hold">Hold ONyc</option><option value="supply" selected>Supply ONyc</option><option value="lp">Provide liquidity</option><option value="loop">Leveraged loop</option><option value="yt">YT-ONyc</option><option value="custom">Custom</option></select></label>
+          <label><span>SIMULATION DAYS</span><select name="days"><option>7</option><option selected>30</option><option>60</option><option>90</option><option>180</option><option>365</option></select></label>
+        </div>
+        <details class="advanced-inputs"><summary>Advanced assumptions <span>+</span></summary><div class="sim-inputs">
+          <label><span>CURRENT POINTS</span><input name="currentPoints" type="number" value="0" min="0" step="1"/></label>
+          <label><span>ONYC PRICE</span><input name="onycPrice" type="number" value="1.13" min="0.01" step="0.01"/></label>
+          <label><span>HOLD MULTIPLIER</span><input name="holdMultiplier" type="number" value="1" min="0" step="0.1"/></label>
+          <label><span>SUPPLY MULTIPLIER</span><input name="supplyMultiplier" type="number" value="3" min="0" step="0.1"/></label>
+          <label><span>LP MULTIPLIER</span><input name="lpMultiplier" type="number" value="2" min="0" step="0.1"/></label>
+          <label><span>QUALIFYING SHARE</span><input name="qualifyingShare" type="number" value="50" min="0" max="100" step="1"/><small>%</small></label>
+          <label><span>LOOP BASE MULTIPLIER</span><input name="loopMultiplier" type="number" value="3" min="0" step="0.1"/></label>
+          <label><span>LOOP LEVERAGE</span><input name="leverage" type="number" value="1.9" min="0" step="0.1"/></label>
+          <label><span>YT MULTIPLIER</span><input name="ytMultiplier" type="number" value="4" min="0" step="0.1"/></label>
+          <label><span>YT RECEIVED / USD</span><input name="ytPerUsd" type="number" value="38.17" min="0" step="0.01"/></label>
+          <label><span>CUSTOM DAILY POINTS</span><input name="customDailyPoints" type="number" value="100" min="0" step="1"/></label>
+          <label><span>GROWTH MODE</span><select name="mode"><option value="wallet" selected>Wallet velocity</option><option value="cohort">Smoothed cohort</option></select></label>
+          <label><span>COHORT STATISTIC</span><select name="statistic"><option value="median" selected>Median</option><option value="trimmed">Trimmed mean</option><option value="mean">Mean</option></select></label>
+          <label><span>SCENARIO</span><select name="scenario"><option value="1.25">Conservative</option><option value="1" selected>Base</option><option value="0.75">Aggressive</option></select></label>
+          <label><span>COMPETITOR MULTIPLIER</span><input name="competitorMultiplier" type="number" value="1" min="0" step="0.05"/></label>
+          <label><span>WINSOR LOWER %</span><input name="winsorLow" type="number" value="1" min="0" max="49" step="0.5"/></label>
+          <label><span>WINSOR UPPER %</span><input name="winsorHigh" type="number" value="99" min="51" max="100" step="0.5"/></label>
+        </div></details>
+      </form>
+      <aside class="formula-card simulator-note"><p class="eyebrow">LIVE FORMULA</p><strong id="strategy-formula">—</strong><small>All strategy assumptions are editable and are not protocol guarantees.</small></aside>
+    </section>
+
+    <section id="summary-cards" class="sim-summary" aria-label="Simulation results"></section>
+    <section class="sim-chart-grid"><article class="panel"><div class="section-head"><div><p class="eyebrow">MOVING VS STATIC</p><h2>Rank progression <span class="chart-info" tabindex="0" aria-label="About rank progression">i<span role="tooltip">Shows your projected rank while other wallets keep earning. The dashed line shows your rank if competitors stopped earning.</span></span></h2></div></div><div id="rank-chart" class="sim-chart"></div></article>
+      <article class="panel"><div class="section-head"><div><p class="eyebrow">ACCUMULATION</p><h2>Points progression <span class="chart-info" tabindex="0" aria-label="About points progression">i<span role="tooltip">Compares your accumulated points with the estimated points needed to hold your projected leaderboard position.</span></span></h2></div></div><div id="points-chart" class="sim-chart"></div></article></section>
+    <details class="advanced-results"><summary><span><small>OPTIONAL</small>Advanced analysis and model details</span><b>+</b></summary><div class="advanced-results-body">
+    <section class="panel"><div class="section-head"><div><p class="eyebrow">SAME CAPITAL / SAME DURATION</p><h2>Strategy comparison</h2></div></div><div class="table-wrap"><table><thead><tr><th>STRATEGY</th><th class="right">DAILY POINTS</th><th class="right">FINAL POINTS</th><th class="right">RANK</th><th class="right">GAINED</th><th class="right">POINTS / $ / DAY</th><th class="right">COST / POSITION</th></tr></thead><tbody id="strategy-table"></tbody></table></div></section>
+
+    <section class="panel target-panel"><div><p class="eyebrow">REVERSE CALCULATOR</p><h2>How much to reach a target?</h2><p>Uses binary search against the moving leaderboard and current assumptions.</p></div><form id="target-form"><label><span>TARGET RANK</span><input name="targetRank" type="number" value="1000" min="1" max="20000"/></label><button type="submit">Calculate <span>→</span></button></form><div id="target-result" class="target-result">Enter a target rank.</div></section>
+
+    <details class="panel diagnostics"><summary><span><small>MODEL TRANSPARENCY</small>Diagnostics & cohort statistics</span><b>+</b></summary><div id="diagnostics-content"></div><div class="table-wrap"><table><thead><tr><th>RANK COHORT</th><th class="right">WALLETS</th><th class="right">ACTIVE</th><th class="right">MEDIAN / DAY</th><th class="right">MEAN / DAY</th><th class="right">P25</th><th class="right">P75</th><th class="right">P90</th></tr></thead><tbody id="cohort-table"></tbody></table></div><div class="diagnostic-downloads"><button data-download="velocities">Wallet velocities CSV</button><button data-download="cohorts">Cohorts CSV</button><button data-download="trajectory">Trajectory CSV</button><button data-download="strategies">Strategies CSV</button></div></details>
+    <section class="panel methodology"><p class="eyebrow">METHODOLOGY</p><h2>How the model works</h2><ol><li>Wallets are matched by address across snapshots.</li><li>Consecutive snapshot dates represent one daily points-credit cycle.</li><li>Existing wallets use wallet-level or cohort-level stationary velocity.</li><li>The simulated wallet earns points from editable strategy assumptions.</li><li>Every wallet is re-ranked throughout the selected period.</li><li>The gap between static and moving ranks represents leaderboard decay.</li></ol><p>The initial model uses only two daily credit observations. It is useful for exploration, but several weeks of snapshots are needed for a stable long-term velocity estimate.</p></section>
+    </div></details>
+  </main><footer><span>INDEPENDENT ONRE ANALYTICS</span><a class="creator" href="https://x.com/0xCzyzu" target="_blank" rel="noopener noreferrer">SHIPPED BY 0xCzyzu</a><span>MODEL: STATIONARY VELOCITY</span></footer>
+</div><section id="simulator-gate" class="simulator-gate" role="dialog" aria-modal="true" aria-labelledby="gate-title"><form id="gate-form"><span class="mark"><img src="/onre-logo.jpg" alt=""/></span><p class="eyebrow">PRIVATE PREVIEW</p><h2 id="gate-title">Enter simulator</h2><p>This model is currently available to invited testers.</p><label><span>ACCESS PASSWORD</span><input name="password" type="password" autocomplete="current-password" required autofocus/></label><button type="submit">Continue <span>→</span></button><small id="gate-error" role="alert"></small></form></section><div id="error" class="error" role="alert" hidden></div><script type="module" src="/simulator.js"></script></body></html>

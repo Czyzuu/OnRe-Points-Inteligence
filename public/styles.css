@@ -56,7 +56,8 @@ h1 em{font-family:Georgia,serif;font-weight:400;color:var(--dark)}
 .band .cutoff{display:block;border-top:1px solid #12231f22;margin-top:15px;padding-top:12px;font:500 10px "DM Mono",monospace;color:var(--ink)}
 .band .cutoff b{display:block;margin-top:5px;font-size:13px}
 .note{color:var(--muted);font-size:11px;margin:18px 0 0}
-.leaderboard-head label{font:500 10px "DM Mono",monospace;color:var(--muted)}
+.leaderboard-tools{display:flex;align-items:center;gap:12px}.leaderboard-head label{font:500 10px "DM Mono",monospace;color:var(--muted)}
+.export-button{height:32px;padding:0 12px;border:1px solid var(--dark);background:transparent;color:var(--dark);font:500 9px "DM Mono",monospace;text-transform:uppercase;letter-spacing:.05em;cursor:pointer}.export-button span{margin-left:12px}.export-button:hover:not(:disabled){background:var(--dark);color:var(--green)}.export-button:disabled{cursor:wait;opacity:.65}
 select{margin-left:8px;border:1px solid var(--line);background:white;padding:7px;font:500 11px "DM Mono",monospace}
 .wallet-search{margin-top:28px;padding:18px;background:#f0f1ea;border:1px solid var(--line)}
 .wallet-search>label{display:block;margin-bottom:9px;font:500 9px "DM Mono",monospace;color:var(--muted);letter-spacing:.1em}
@@ -169,6 +170,7 @@ footer{height:90px;border-top:1px solid var(--line);display:flex;align-items:cen
 .thesis-grid small{color:var(--muted)}
 .disclaimer{margin:22px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
 @media(max-width:850px){.shell{padding:0 20px}
+.export-button{display:none}
 .top-nav{order:3;width:100%;justify-content:center;border-top:1px solid var(--line);padding-top:10px}
 header{height:auto;min-height:92px;flex-wrap:wrap;padding:14px 0}
 .valuation-result{grid-template-columns:1fr}

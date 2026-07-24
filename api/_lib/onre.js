@@ -20,6 +20,9 @@ export function setCache(res, seconds = 300) {
 
 export function sendError(res, error, fallback) {
   console.error(error);
-  const status = error.status === 404 ? 404 : 500;
-  return res.status(status).json({ error: status === 404 ? "Wallet not found on the OnRe leaderboard" : fallback });
+  const status = [404, 429].includes(error.status) ? error.status : 500;
+  const message = status === 404
+    ? "Wallet not found on the OnRe leaderboard"
+    : status === 429 ? "OnRe rate limit reached" : fallback;
+  return res.status(status).json({ error: message });
 }
