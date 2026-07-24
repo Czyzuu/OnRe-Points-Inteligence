@@ -86,7 +86,11 @@ export const strategyDailyPoints = (strategy, input) => {
   if (strategy === "supply") return investment / price * input.supplyMultiplier;
   if (strategy === "lp") return investment / price * input.lpMultiplier * input.qualifyingShare;
   if (strategy === "loop") return investment / price * input.leverage * input.loopMultiplier;
-  if (strategy === "yt") return investment * input.ytPerUsd * input.ytMultiplier;
+  if (strategy === "yt") return investment / price * input.ytPerOnyc * input.ytMultiplier;
+  if (strategy === "ratex") return investment / price * input.ratexMultiplier;
+  if (strategy === "vault") return investment / price * input.vaultMultiplier;
+  if (strategy === "junior") return investment / price * input.juniorMultiplier;
+  if (strategy === "senior") return investment / price * input.seniorMultiplier;
   return Number(input.customDailyPoints) || 0;
 };
 

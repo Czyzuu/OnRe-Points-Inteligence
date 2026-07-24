@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchExponentYtQuote } from "./api/_lib/exponent.js";
 
 const PORT = Number(process.env.PORT || 4173);
 const API = "https://rewards.api.onre.finance/api/v1";
@@ -70,6 +71,12 @@ const server = http.createServer(async (req, res) => {
       const expires = String(Date.now() + SIMULATOR_MAX_AGE * 1000);
       res.setHeader("Set-Cookie", `${SIMULATOR_COOKIE}=${encodeURIComponent(`${expires}.${signSimulatorSession(expires, configuredPassword)}`)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SIMULATOR_MAX_AGE}`);
       return json(res, 200, { authenticated: true });
+    }
+
+    if (url.pathname === "/api/exponent-yt") {
+      if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
+      try { return json(res, 200, await fetchExponentYtQuote()); }
+      catch { return json(res, 502, { error: "Failed to fetch Exponent YT quote" }); }
     }
     if (url.pathname === "/api/summary") {
       const [overview, growth] = await Promise.all([

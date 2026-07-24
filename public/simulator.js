@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
-const strategyNames = { hold: "Hold ONyc", supply: "Supply ONyc", lp: "Provide liquidity", loop: "Leveraged loop", yt: "YT-ONyc", custom: "Custom" };
+const strategyNames = { hold: "Hold ONyc", supply: "Supply ONyc", lp: "Provide liquidity", loop: "Leveraged loop", yt: "Exponent YT-ONyc", ratex: "RateX yield trading", vault: "Vault strategy", junior: "Exponent junior tranche", senior: "Exponent senior tranche", custom: "Custom" };
 const strategies = Object.keys(strategyNames);
 let model; let currentResult; let strategyResults = []; let earlierRows; let laterRows; let winsorSettings = "1:99";
 
@@ -31,6 +31,19 @@ async function unlockSimulator() {
 }
 
 await unlockSimulator();
+
+async function loadExponentYtQuote() {
+  const status = $("yt-live-status");
+  try {
+    const response = await fetch("/api/exponent-yt"); const quote = await response.json();
+    if (!response.ok) throw new Error(quote.error || "Live quote unavailable");
+    const ytPerOnyc = Number(quote.ytPerOnyc ?? quote.ytPerUsd);
+    if (!(ytPerOnyc > 0)) throw new Error("Invalid Exponent quote");
+    $("simulator-form").elements.ytPerOnyc.value = ytPerOnyc.toFixed(4);
+    status.textContent = `LIVE EXPONENT · ${ytPerOnyc.toFixed(2)} YT / ONYC`;
+    status.title = `${quote.source.replaceAll("_", " ")} · ${new Date(quote.asOf).toLocaleString()}`;
+  } catch { status.textContent = "LIVE QUOTE UNAVAILABLE · USING EDITABLE FALLBACK"; status.classList.add("quote-fallback"); }
+}
 
 const formValues = () => {
   const data = Object.fromEntries(new FormData($("simulator-form")));
@@ -99,7 +112,7 @@ function update() {
   if (document.activeElement?.name !== "competitorMultiplier") $("simulator-form").elements.competitorMultiplier.value=input.scenario;
   input.competitorMultiplier=Number($("simulator-form").elements.competitorMultiplier.value);
   const options=optionsFrom(input); currentResult=simulate(model,input,options);
-  const formulas={hold:"USD ÷ ONyc price × hold multiplier",supply:"USD ÷ ONyc price × supply multiplier",lp:"USD ÷ price × LP multiplier × qualifying share",loop:"USD ÷ price × leverage × base multiplier",yt:"USD × YT per USD × YT multiplier",custom:"Custom daily points"};
+  const formulas={hold:`USD ÷ ONyc price × ${input.holdMultiplier}× hold boost`,supply:`USD ÷ ONyc price × ${input.supplyMultiplier}× lending boost`,lp:`USD ÷ price × ${input.lpMultiplier}× liquidity boost × qualifying share`,loop:`USD ÷ price × ${input.leverage}× leverage × ${input.loopMultiplier}× looping boost`,yt:`USD ÷ ONyc price × YT per ONyc × ${input.ytMultiplier}× Exponent YT boost`,ratex:`USD ÷ ONyc price × ${input.ratexMultiplier}× RateX boost`,vault:`USD ÷ ONyc price × ${input.vaultMultiplier}× vault boost`,junior:`USD ÷ ONyc price × ${input.juniorMultiplier}× junior tranche boost`,senior:`USD ÷ ONyc price × ${input.seniorMultiplier}× senior tranche boost`,custom:"Custom daily points"};
   $("strategy-formula").textContent=`${formulas[input.strategy]} = ${fmt.format(currentResult.dailyPoints)} / day`;
   renderSummary(input,currentResult,options); renderCharts(input,currentResult,options); renderStrategies(input,options); renderDiagnostics(input);
 }
@@ -111,6 +124,7 @@ let timer; $("simulator-form").addEventListener("input",()=>{clearTimeout(timer)
 document.querySelectorAll('[data-download]').forEach((button)=>button.addEventListener('click',()=>{const type=button.dataset.download;if(type==='velocities')download(type,['wallet','raw_daily_velocity','clean_daily_velocity','winsorized_velocity'],model.matched.map(w=>[w.walletAddress,w.rawDailyVelocity,w.cleanDailyVelocity,w.walletVelocity]));if(type==='cohorts')download(type,['cohort','count','active','median','mean','p25','p75','p90'],model.cohortStats.map(c=>[c.label,c.count,c.active,c.median,c.mean,c.p25,c.p75,c.p90]));if(type==='trajectory')download(type,['day','user_points','projected_rank','static_rank'],currentResult.trajectory.map(r=>[r.day,r.userPoints,r.projectedRank,r.staticRank]));if(type==='strategies')download(type,['strategy','daily_points','final_points','rank','positions_gained'],strategyResults.map(s=>[strategyNames[s.strategy],s.result.dailyPoints,s.result.finalPoints,s.result.finalRank,s.result.positionsGained]));}));
 
 try {
+  await loadExponentYtQuote();
   const manifest=await fetch('/data/snapshots.json').then(r=>r.json()); const snapshots=await Promise.all(manifest.map(async(item)=>({item,rows:parseCsv(await fetch(item.path).then(r=>r.text()))})));
   snapshots.sort((a,b)=>new Date(a.rows[0].exportedAt)-new Date(b.rows[0].exportedAt)); earlierRows=snapshots.at(-2).rows;laterRows=snapshots.at(-1).rows;
   model=buildVelocityModel(earlierRows,laterRows);model.earlierAt=earlierRows[0].exportedAt;model.laterAt=laterRows[0].exportedAt;

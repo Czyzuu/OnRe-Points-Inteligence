@@ -16,7 +16,7 @@
       <form id="simulator-form" class="simulator-form"><div class="section-head"><div><p class="eyebrow">QUICK SIMULATOR</p><h2>Choose your strategy</h2></div></div>
         <div class="sim-inputs primary-inputs">
           <label><span>INVESTMENT USD</span><input name="investmentUsd" type="number" value="100" min="0" step="1"/></label>
-          <label><span>STRATEGY</span><select name="strategy"><option value="hold">Hold ONyc</option><option value="supply" selected>Supply ONyc</option><option value="lp">Provide liquidity</option><option value="loop">Leveraged loop</option><option value="yt">YT-ONyc</option><option value="custom">Custom</option></select></label>
+          <label><span>STRATEGY</span><select name="strategy"><option value="hold">Hold ONyc · 1×</option><option value="supply" selected>Supply ONyc · 3×</option><option value="lp">Provide liquidity · 2×</option><option value="loop">Leveraged loop · 6×</option><option value="yt">Exponent YT-ONyc · 8×</option><option value="ratex">RateX yield trading · 5×</option><option value="vault">Vault strategy · 4×</option><option value="junior">Exponent junior tranche · 6×</option><option value="senior">Exponent senior tranche · 1×</option><option value="custom">Custom</option></select></label>
           <label><span>SIMULATION DAYS</span><select name="days"><option>7</option><option selected>30</option><option>60</option><option>90</option><option>180</option><option>365</option></select></label>
         </div>
         <details class="advanced-inputs"><summary>Advanced assumptions <span>+</span></summary><div class="sim-inputs">
@@ -26,10 +26,14 @@
           <label><span>SUPPLY MULTIPLIER</span><input name="supplyMultiplier" type="number" value="3" min="0" step="0.1"/></label>
           <label><span>LP MULTIPLIER</span><input name="lpMultiplier" type="number" value="2" min="0" step="0.1"/></label>
           <label><span>QUALIFYING SHARE</span><input name="qualifyingShare" type="number" value="50" min="0" max="100" step="1"/><small>%</small></label>
-          <label><span>LOOP BASE MULTIPLIER</span><input name="loopMultiplier" type="number" value="3" min="0" step="0.1"/></label>
+          <label><span>LOOP POINTS BOOST</span><input name="loopMultiplier" type="number" value="6" min="0" step="0.1"/></label>
           <label><span>LOOP LEVERAGE</span><input name="leverage" type="number" value="1.9" min="0" step="0.1"/></label>
-          <label><span>YT MULTIPLIER</span><input name="ytMultiplier" type="number" value="4" min="0" step="0.1"/></label>
-          <label><span>YT RECEIVED / USD</span><input name="ytPerUsd" type="number" value="38.17" min="0" step="0.01"/></label>
+          <label><span>EXPONENT YT POINTS BOOST</span><input name="ytMultiplier" type="number" value="8" min="0" step="0.1"/></label>
+          <label><span>YT RECEIVED / ONYC</span><input name="ytPerOnyc" type="number" value="38.17" min="0" step="0.01"/><em id="yt-live-status">LOADING LIVE</em></label>
+          <label><span>RATEX POINTS BOOST</span><input name="ratexMultiplier" type="number" value="5" min="0" step="0.1"/></label>
+          <label><span>VAULT POINTS BOOST</span><input name="vaultMultiplier" type="number" value="4" min="0" step="0.1"/></label>
+          <label><span>JUNIOR TRANCHE BOOST</span><input name="juniorMultiplier" type="number" value="6" min="0" step="0.1"/></label>
+          <label><span>SENIOR TRANCHE BOOST</span><input name="seniorMultiplier" type="number" value="1" min="0" step="0.1"/></label>
           <label><span>CUSTOM DAILY POINTS</span><input name="customDailyPoints" type="number" value="100" min="0" step="1"/></label>
           <label><span>GROWTH MODE</span><select name="mode"><option value="wallet" selected>Wallet velocity</option><option value="cohort">Smoothed cohort</option></select></label>
           <label><span>COHORT STATISTIC</span><select name="statistic"><option value="median" selected>Median</option><option value="trimmed">Trimmed mean</option><option value="mean">Mean</option></select></label>
