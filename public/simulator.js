@@ -15,13 +15,14 @@ async function unlockSimulator() {
   if (!authenticated) await new Promise((resolve) => {
     $("gate-form").addEventListener("submit", async (event) => {
       event.preventDefault();
-      const button = event.currentTarget.querySelector("button");
+      const form = event.currentTarget;
+      const button = form.querySelector("button");
       button.disabled = true; $("gate-error").textContent = "";
       try {
-        const response = await fetch("/api/simulator-auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: new FormData(event.currentTarget).get("password") }) });
+        const response = await fetch("/api/simulator-auth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: new FormData(form).get("password") }) });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Unable to verify password");
-        event.currentTarget.reset(); resolve();
+        form.reset(); resolve();
       } catch (error) { $("gate-error").textContent = error.message; }
       finally { button.disabled = false; }
     });
