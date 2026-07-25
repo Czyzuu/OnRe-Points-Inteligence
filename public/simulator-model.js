@@ -101,8 +101,8 @@ export function buildVelocityModel(earlier, later, winsorLow = .01, winsorHigh =
   return buildMultiSnapshotVelocityModel([earlier, later], winsorLow, winsorHigh);
 }
 
-export const strategyDailyPoints = (strategy, input) => {
-  const investment = Number(input.investmentUsd) || 0; const price = Number(input.onycPrice) || 1;
+const singleStrategyDailyPoints = (strategy, investment, input) => {
+  const price = Number(input.onycPrice) || 1;
   if (strategy === "hold") return investment / price * input.holdMultiplier;
   if (strategy === "supply") return investment / price * input.supplyMultiplier;
   if (strategy === "lp") return investment / price * input.lpMultiplier * input.qualifyingShare;
@@ -113,6 +113,15 @@ export const strategyDailyPoints = (strategy, input) => {
   if (strategy === "junior") return investment / price * input.juniorMultiplier;
   if (strategy === "senior") return investment / price * input.seniorMultiplier;
   return Number(input.customDailyPoints) || 0;
+};
+
+export const strategyDailyPoints = (strategy, input) => {
+  const investment = Number(input.investmentUsd) || 0;
+  if (strategy !== "mix") return singleStrategyDailyPoints(strategy, investment, input);
+  const allocations = input.mixAllocations || {}; const allocationTotal = Object.values(allocations).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  if (!allocationTotal) return 0;
+  const scale = investment / allocationTotal;
+  return Object.entries(allocations).reduce((sum, [mixedStrategy, amount]) => sum + singleStrategyDailyPoints(mixedStrategy, (Number(amount) || 0) * scale, input), 0);
 };
 
 export function walletVelocity(wallet, mode, statistic, model) {

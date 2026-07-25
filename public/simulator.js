@@ -1,11 +1,13 @@
-import { buildMultiSnapshotVelocityModel, parseCsv, rankAt, simulate, strategyDailyPoints, targetInvestment, walletVelocity } from "./simulator-model.js";
+import { buildMultiSnapshotVelocityModel, parseCsv, rankAt, simulate, strategyDailyPoints, targetInvestment } from "./simulator-model.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 });
 const money = new Intl.NumberFormat("en", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
-const strategyNames = { hold: "Hold ONyc", supply: "Supply ONyc", lp: "Provide liquidity", loop: "Leveraged loop", yt: "Exponent YT-ONyc", ratex: "RateX yield trading", vault: "Vault strategy", junior: "Exponent junior tranche", senior: "Exponent senior tranche", custom: "Custom" };
+const chartDate = new Intl.DateTimeFormat("en", { month:"short", day:"numeric", year:"numeric", timeZone:"UTC" });
+const strategyNames = { hold: "Hold ONyc", supply: "Supply ONyc", lp: "Provide liquidity", loop: "Leveraged loop", yt: "Exponent YT-ONyc", ratex: "RateX yield trading", vault: "Vault strategy", junior: "Exponent junior tranche", senior: "Exponent senior tranche", mix: "Mixed portfolio", custom: "Custom" };
 const strategies = Object.keys(strategyNames);
+const mixFields = { hold:"mixHold", supply:"mixSupply", lp:"mixLp", loop:"mixLoop", yt:"mixYt", ratex:"mixRatex", vault:"mixVault", junior:"mixJunior", senior:"mixSenior" };
 let model; let currentResult; let strategyResults = []; let snapshotRows = []; let winsorSettings = "1:99";
 
 async function unlockSimulator() {
@@ -45,16 +47,24 @@ async function loadExponentYtQuote() {
   } catch { status.textContent = "LIVE QUOTE UNAVAILABLE · USING EDITABLE FALLBACK"; status.classList.add("quote-fallback"); }
 }
 
+function syncMixState() {
+  const form = $("simulator-form"); const mixed = form.elements.strategy.value === "mix"; const investment = form.elements.investmentUsd;
+  $("mix-builder").hidden = !mixed; investment.readOnly = mixed;
+  if (mixed) investment.value = Object.values(mixFields).reduce((sum, field) => sum + (Number(form.elements[field].value) || 0), 0);
+}
+
 const formValues = () => {
+  syncMixState();
   const data = Object.fromEntries(new FormData($("simulator-form")));
   for (const key of Object.keys(data)) if (!['strategy','mode','statistic'].includes(key)) data[key] = Number(data[key]);
+  data.mixAllocations = Object.fromEntries(Object.entries(mixFields).map(([strategy,field])=>[strategy,data[field]]));
   data.qualifyingShare /= 100; return data;
 };
 const optionsFrom = (input) => ({ mode: input.mode, statistic: input.statistic, competitorMultiplier: input.competitorMultiplier });
 const escapeCsv = (value) => `"${String(value ?? "").replaceAll('"','""')}"`;
 
-function svgChart(series, { invert = false, formatter = compact.format, fill = false } = {}) {
-  const width = 620, height = 250, left = 58, right = 15, top = 15, bottom = 30;
+function svgChart(series, { invert = false, formatter = compact.format, fill = false, width = 620, height = 250 } = {}) {
+  const left = 58, right = 15, top = 15, bottom = 30;
   const all = series.flatMap((line) => line.values.map((point) => point.y));
   let min = Math.min(...all), max = Math.max(...all); if (min === max) max = min + 1;
   const maxX = Math.max(...series.flatMap((line) => line.values.map((point) => point.x)), 1);
@@ -65,7 +75,17 @@ function svgChart(series, { invert = false, formatter = compact.format, fill = f
   const lineClass = (line, index) => line.className || (index ? "chart-static" : fill ? "chart-fill" : "chart-user");
   const lines = series.map((line, index) => `<path class="${lineClass(line,index)}" d="${path(line.values)}"/>`).join("");
   const legend = series.map((line, i) => `<line class="chart-legend ${lineClass(line,i)}" x1="${left+i*175}" x2="${left+16+i*175}" y1="${height-7}" y2="${height-7}"/><text class="chart-label" x="${left+22+i*175}" y="${height-4}">${line.label}</text>`).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" role="img"><g>${grid}${lines}${legend}</g></svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" role="img"><g>${grid}${lines}${legend}<g class="chart-hover" visibility="hidden"><line class="chart-crosshair" y1="${top}" y2="${height-bottom}"/><circle class="chart-hover-dot chart-user" r="5"/><circle class="chart-hover-dot chart-static" r="5"/></g></g></svg>`;
+}
+
+function attachRankChartHover(series, trajectory) {
+  const container=$("rank-chart"),svg=container.querySelector("svg"),hover=svg.querySelector(".chart-hover"),crosshair=hover.querySelector("line"),dots=hover.querySelectorAll("circle");
+  const {width,height}=svg.viewBox.baseVal,left=58,right=15,top=15,bottom=30,maxX=Math.max(...trajectory.map((point)=>point.day),1);
+  const values=series.flatMap((line)=>line.values.map((point)=>point.y));let min=Math.min(...values),max=Math.max(...values);if(min===max)max=min+1;
+  const x=(value)=>left+value/maxX*(width-left-right);const y=(value)=>top+(value-min)/(max-min)*(height-top-bottom);
+  const tooltip=document.createElement("div");tooltip.className="chart-hover-tooltip";tooltip.hidden=true;container.append(tooltip);
+  const show=(event)=>{const screenPoint=svg.createSVGPoint();screenPoint.x=event.clientX;screenPoint.y=event.clientY;const viewPoint=screenPoint.matrixTransform(svg.getScreenCTM().inverse()),day=Math.max(0,Math.min(maxX,(viewPoint.x-left)/(width-left-right)*maxX));let nearest=trajectory[0];for(const point of trajectory)if(Math.abs(point.day-day)<Math.abs(nearest.day-day))nearest=point;const px=x(nearest.day);crosshair.setAttribute("x1",px);crosshair.setAttribute("x2",px);dots[0].setAttribute("cx",px);dots[0].setAttribute("cy",y(nearest.projectedRank));dots[1].setAttribute("cx",px);dots[1].setAttribute("cy",y(nearest.staticRank));const date=new Date(model.laterAt);date.setUTCDate(date.getUTCDate()+Math.round(nearest.day));tooltip.innerHTML=`<b>DAY ${Math.round(nearest.day)} · ${chartDate.format(date).toUpperCase()}</b><span>PROJECTED POINTS ${fmt.format(nearest.userPoints)}</span><span>MOVING RANK #${fmt.format(nearest.projectedRank)}</span><span>STATIC RANK #${fmt.format(nearest.staticRank)}</span>`;hover.setAttribute("visibility","visible");tooltip.hidden=false;const svgPoint=svg.createSVGPoint();svgPoint.x=px;svgPoint.y=top;const positioned=svgPoint.matrixTransform(svg.getScreenCTM()),containerRect=container.getBoundingClientRect(),screenX=positioned.x-containerRect.left;tooltip.style.left=`${screenX>container.clientWidth/2?Math.max(0,screenX-tooltip.offsetWidth-10):Math.min(container.clientWidth-tooltip.offsetWidth,screenX+10)}px`;tooltip.style.top="6px";};
+  svg.addEventListener("pointermove",show);svg.addEventListener("pointerdown",show);svg.addEventListener("pointerleave",()=>{hover.setAttribute("visibility","hidden");tooltip.hidden=true});
 }
 
 function renderSummary(input, result, options) {
@@ -79,15 +99,12 @@ function renderSummary(input, result, options) {
 }
 
 function renderCharts(input, result, options) {
-  $("rank-chart").innerHTML = svgChart([
+  const rankSeries=[
     { label: "Moving leaderboard", values: result.trajectory.map((r) => ({ x:r.day,y:r.projectedRank })) },
     { label: "Static comparison", values: result.trajectory.map((r) => ({ x:r.day,y:r.staticRank })) }
-  ], { invert:true, formatter:(v)=>`#${compact.format(v)}` });
-  const thresholdValues = result.trajectory.map((r) => {
-    const wallet = model.wallets[Math.min(model.wallets.length - 1, Math.max(0, r.projectedRank - 1))];
-    return { x:r.day, y:wallet.currentPoints + walletVelocity(wallet, options.mode, options.statistic, model) * options.competitorMultiplier * r.day };
-  });
-  $("points-chart").innerHTML = svgChart([{ label:"User points", values:result.trajectory.map((r)=>({x:r.day,y:r.userPoints})) },{ label:"Rank threshold", values:thresholdValues }]);
+  ];
+  const chart=$("rank-chart"),width=Math.max(320,Math.round(chart.clientWidth)),height=Math.round(chart.clientHeight);
+  chart.innerHTML = svgChart(rankSeries, { invert:true, formatter:(v)=>`#${compact.format(v)}`,width,height });attachRankChartHover(rankSeries,result.trajectory);
 }
 
 function renderStrategies(input, options) {
@@ -112,7 +129,8 @@ function update() {
   if (document.activeElement?.name !== "competitorMultiplier") $("simulator-form").elements.competitorMultiplier.value=input.scenario;
   input.competitorMultiplier=Number($("simulator-form").elements.competitorMultiplier.value);
   const options=optionsFrom(input); currentResult=simulate(model,input,options);
-  const formulas={hold:`USD ÷ ONyc price × ${input.holdMultiplier}× hold boost`,supply:`USD ÷ ONyc price × ${input.supplyMultiplier}× lending boost`,lp:`USD ÷ price × ${input.lpMultiplier}× liquidity boost × qualifying share`,loop:`USD ÷ price × ${input.leverage}× leverage × ${input.loopMultiplier}× looping boost`,yt:`USD ÷ ONyc price × YT per ONyc × ${input.ytMultiplier}× Exponent YT boost`,ratex:`USD ÷ ONyc price × ${input.ratexMultiplier}× RateX boost`,vault:`USD ÷ ONyc price × ${input.vaultMultiplier}× vault boost`,junior:`USD ÷ ONyc price × ${input.juniorMultiplier}× junior tranche boost`,senior:`USD ÷ ONyc price × ${input.seniorMultiplier}× senior tranche boost`,custom:"Custom daily points"};
+  const activeMix=Object.values(input.mixAllocations).filter((amount)=>amount>0).length;
+  const formulas={hold:`USD ÷ ONyc price × ${input.holdMultiplier}× hold boost`,supply:`USD ÷ ONyc price × ${input.supplyMultiplier}× lending boost`,lp:`USD ÷ price × ${input.lpMultiplier}× liquidity boost × qualifying share`,loop:`USD ÷ price × ${input.leverage}× leverage × ${input.loopMultiplier}× looping boost`,yt:`USD ÷ ONyc price × YT per ONyc × ${input.ytMultiplier}× Exponent YT boost`,ratex:`USD ÷ ONyc price × ${input.ratexMultiplier}× RateX boost`,vault:`USD ÷ ONyc price × ${input.vaultMultiplier}× vault boost`,junior:`USD ÷ ONyc price × ${input.juniorMultiplier}× junior tranche boost`,senior:`USD ÷ ONyc price × ${input.seniorMultiplier}× senior tranche boost`,mix:`${money.format(input.investmentUsd)} across ${activeMix} ${activeMix===1?'strategy':'strategies'}`,custom:"Custom daily points"};
   $("strategy-formula").textContent=`${formulas[input.strategy]} = ${fmt.format(currentResult.dailyPoints)} / day`;
   renderSummary(input,currentResult,options); renderCharts(input,currentResult,options); renderStrategies(input,options); renderDiagnostics(input);
 }
@@ -120,7 +138,8 @@ function update() {
 function download(name, headings, rows) { const text=[headings,...rows].map((row)=>row.map(escapeCsv).join(',')).join('\n'); const url=URL.createObjectURL(new Blob(['\uFEFF',text],{type:'text/csv'})); const a=document.createElement('a');a.href=url;a.download=`onre-${name}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000); }
 
 $("target-form").addEventListener("submit",(event)=>{event.preventDefault();const input=formValues();const target=Number(new FormData(event.currentTarget).get('targetRank'));const found=targetInvestment(model,input,optionsFrom(input),target);$("target-result").innerHTML=found?`<b>${money.format(found.investment)}</b><br/>${fmt.format(found.dailyPoints)} points/day<br/>Target threshold: ${fmt.format(found.targetThreshold)} points<br/>Projected rank #${fmt.format(found.rank)}<br/>${fmt.format(found.finalPoints)} final points`:'Target is not reachable below $10,000,000 under these assumptions.';});
-let timer; $("simulator-form").addEventListener("input",()=>{clearTimeout(timer);timer=setTimeout(update,80)});
+let timer; $("simulator-form").addEventListener("input",()=>{syncMixState();clearTimeout(timer);timer=setTimeout(update,80)});
+let resizeTimer;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(update,120)});
 document.querySelectorAll('[data-download]').forEach((button)=>button.addEventListener('click',()=>{const type=button.dataset.download;if(type==='velocities')download(type,['wallet','raw_daily_velocity','clean_daily_velocity','winsorized_velocity'],model.matched.map(w=>[w.walletAddress,w.rawDailyVelocity,w.cleanDailyVelocity,w.walletVelocity]));if(type==='cohorts')download(type,['cohort','count','active','median','mean','p25','p75','p90'],model.cohortStats.map(c=>[c.label,c.count,c.active,c.median,c.mean,c.p25,c.p75,c.p90]));if(type==='trajectory')download(type,['day','user_points','projected_rank','static_rank'],currentResult.trajectory.map(r=>[r.day,r.userPoints,r.projectedRank,r.staticRank]));if(type==='strategies')download(type,['strategy','daily_points','final_points','rank','positions_gained'],strategyResults.map(s=>[strategyNames[s.strategy],s.result.dailyPoints,s.result.finalPoints,s.result.finalRank,s.result.positionsGained]));}));
 
 try {
