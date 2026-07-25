@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildVelocityModel, parseCsv, quantile, rankAt, simulate, strategyDailyPoints, targetInvestment } from "../public/simulator-model.js";
+import { buildMultiSnapshotVelocityModel, buildVelocityModel, parseCsv, quantile, rankAt, simulate, strategyDailyPoints, targetInvestment } from "../public/simulator-model.js";
 
 const header='"rank","wallet_address","total_points","percentile","network_share","top_source","top_source_points","exported_at"\n';
 const csv=(rows,time)=>header+rows.map((r)=>`"${r.rank}","${r.wallet}","${r.points}","0","0","Wallet holdings","${r.points}","${time}"`).join('\n');
@@ -19,3 +19,4 @@ test('places existing wallets above the user on exact ties',()=>assert.equal(ran
 test('moving and static leaderboard projections differ',()=>{const r=simulate(model,{strategy:'custom',customDailyPoints:1,currentPoints:100,investmentUsd:0,days:30},{mode:'wallet',statistic:'median',competitorMultiplier:1});assert.notEqual(r.trajectory.at(-1).projectedRank,r.trajectory.at(-1).staticRank)});
 test('target-rank solver finds minimum monotonic investment',()=>{const inputs={strategy:'supply',supplyMultiplier:3,onycPrice:1,currentPoints:0,investmentUsd:0,days:30};const r=targetInvestment(model,inputs,{mode:'wallet',statistic:'median',competitorMultiplier:1},2,10000);assert.ok(r&&r.rank<=2)});
 test('scenario multiplier changes competitor projection',()=>{const inputs={strategy:'custom',customDailyPoints:1,currentPoints:100,investmentUsd:0,days:30};const base=simulate(model,inputs,{mode:'wallet',statistic:'median',competitorMultiplier:1});const conservative=simulate(model,inputs,{mode:'wallet',statistic:'median',competitorMultiplier:1.25});assert.ok(conservative.finalRank>=base.finalRank)});
+test('uses the median pairwise trend across three daily snapshots',()=>{const middleTime='2026-07-24T06:12:39.311Z',finalTime='2026-07-25T08:00:00.000Z';const first=parseCsv(csv([{rank:1,wallet:'A',points:100}],earlyTime));const middle=parseCsv(csv([{rank:1,wallet:'A',points:300}],middleTime));const final=parseCsv(csv([{rank:1,wallet:'A',points:140}],finalTime));const m=buildMultiSnapshotVelocityModel([first,middle,final],0,1);assert.equal(m.matched[0].rawDailyVelocity,20);assert.equal(m.matched[0].observationCount,3);assert.equal(m.snapshotCount,3)});

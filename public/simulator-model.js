@@ -39,19 +39,34 @@ export const trimmedMean = (values, trim = .1) => {
 };
 export const cohortForRank = (rank) => COHORTS.find(([min, max]) => rank >= min && rank <= max) || COHORTS.at(-1);
 
-export function buildVelocityModel(earlier, later, winsorLow = .01, winsorHigh = .99) {
+const creditDay = (row) => {
+  const date = new Date(row.exportedAt);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / 86_400_000;
+};
+
+export function buildMultiSnapshotVelocityModel(snapshots, winsorLow = .01, winsorHigh = .99) {
+  const ordered = [...snapshots].filter((rows) => rows.length).sort((a, b) => new Date(a[0].exportedAt) - new Date(b[0].exportedAt));
+  if (ordered.length < 2) throw new Error("At least two leaderboard snapshots are required");
+  const earlier = ordered[0]; const later = ordered.at(-1);
   const earlierDate = new Date(earlier[0].exportedAt); const laterDate = new Date(later[0].exportedAt);
   const actualElapsedDays = (laterDate - earlierDate) / 86_400_000;
-  const utcDay = (date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-  const elapsedDays = Math.max(1, Math.round((utcDay(laterDate) - utcDay(earlierDate)) / 86_400_000));
-  const earlierMap = new Map(earlier.map((row) => [row.walletAddress, row]));
+  const elapsedDays = Math.max(1, creditDay(later[0]) - creditDay(earlier[0]));
+  const history = new Map();
+  ordered.forEach((rows) => rows.forEach((row) => {
+    if (!history.has(row.walletAddress)) history.set(row.walletAddress, []);
+    history.get(row.walletAddress).push(row);
+  }));
   const laterAddresses = new Set(later.map((row) => row.walletAddress));
-  const matched = later.filter((row) => earlierMap.has(row.walletAddress)).map((current) => {
-    const previous = earlierMap.get(current.walletAddress); const rawPointDelta = current.totalPoints - previous.totalPoints;
-    const rawDailyVelocity = rawPointDelta / elapsedDays;
+  const matched = later.filter((row) => history.get(row.walletAddress).length >= 2).map((current) => {
+    const observations = history.get(current.walletAddress); const previous = observations[0]; const slopes = [];
+    for (let i = 0; i < observations.length - 1; i++) for (let j = i + 1; j < observations.length; j++) {
+      const days = creditDay(observations[j]) - creditDay(observations[i]);
+      if (days > 0) slopes.push((observations[j].totalPoints - observations[i].totalPoints) / days);
+    }
+    const rawPointDelta = current.totalPoints - previous.totalPoints; const rawDailyVelocity = quantile(slopes, .5);
     return { ...current, earlierRank: previous.rank, currentRank: current.rank, earlierPoints: previous.totalPoints,
       currentPoints: current.totalPoints, rawPointDelta, rawDailyVelocity, cleanDailyVelocity: Math.max(0, rawDailyVelocity),
-      rankDelta: previous.rank - current.rank };
+      rankDelta: previous.rank - current.rank, observationCount: observations.length };
   });
   const clean = matched.map((row) => row.cleanDailyVelocity); const low = quantile(clean, winsorLow); const high = quantile(clean, winsorHigh);
   matched.forEach((row) => { row.walletVelocity = Math.min(high, Math.max(low, row.cleanDailyVelocity)); });
@@ -73,11 +88,17 @@ export function buildVelocityModel(earlier, later, winsorLow = .01, winsorHigh =
     return { ...row, currentRank: row.rank, currentPoints: row.totalPoints, rawDailyVelocity: null,
       cleanDailyVelocity: null, walletVelocity: source?.median ?? cohort?.median ?? 0, isNew: true };
   });
-  return { wallets, matched, cohortStats, groupStats, elapsedDays, actualElapsedDays, low, high,
+  const priorAddresses = new Set(ordered.slice(0, -1).flatMap((rows) => rows.map((row) => row.walletAddress)));
+  return { wallets, matched, cohortStats, groupStats, elapsedDays, actualElapsedDays, low, high, snapshotCount: ordered.length,
+    velocityMethod: ordered.length > 2 ? "Theil–Sen multi-snapshot trend" : "Two-snapshot daily delta",
     diagnostics: { earlier: earlier.length, later: later.length, matched: matched.length, newWallets: later.length - matched.length,
-      missing: earlier.filter((row) => !laterAddresses.has(row.walletAddress)).length, positive: matched.filter((w) => w.rawPointDelta > 0).length,
-      zero: matched.filter((w) => w.rawPointDelta === 0).length, negative: matched.filter((w) => w.rawPointDelta < 0).length,
+      missing: [...priorAddresses].filter((address) => !laterAddresses.has(address)).length, positive: matched.filter((w) => w.rawDailyVelocity > 0).length,
+      zero: matched.filter((w) => w.rawDailyVelocity === 0).length, negative: matched.filter((w) => w.rawDailyVelocity < 0).length,
       rawMedian: quantile(matched.map((w) => w.rawDailyVelocity), .5), winsorMedian: quantile(matched.map((w) => w.walletVelocity), .5) } };
+}
+
+export function buildVelocityModel(earlier, later, winsorLow = .01, winsorHigh = .99) {
+  return buildMultiSnapshotVelocityModel([earlier, later], winsorLow, winsorHigh);
 }
 
 export const strategyDailyPoints = (strategy, input) => {

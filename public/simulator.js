@@ -1,4 +1,4 @@
-import { buildVelocityModel, parseCsv, rankAt, simulate, strategyDailyPoints, targetInvestment, walletVelocity } from "./simulator-model.js";
+import { buildMultiSnapshotVelocityModel, parseCsv, rankAt, simulate, strategyDailyPoints, targetInvestment, walletVelocity } from "./simulator-model.js";
 
 const $ = (id) => document.getElementById(id);
 const fmt = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
@@ -6,7 +6,7 @@ const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFracti
 const money = new Intl.NumberFormat("en", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 const strategyNames = { hold: "Hold ONyc", supply: "Supply ONyc", lp: "Provide liquidity", loop: "Leveraged loop", yt: "Exponent YT-ONyc", ratex: "RateX yield trading", vault: "Vault strategy", junior: "Exponent junior tranche", senior: "Exponent senior tranche", custom: "Custom" };
 const strategies = Object.keys(strategyNames);
-let model; let currentResult; let strategyResults = []; let earlierRows; let laterRows; let winsorSettings = "1:99";
+let model; let currentResult; let strategyResults = []; let snapshotRows = []; let winsorSettings = "1:99";
 
 async function unlockSimulator() {
   document.body.classList.add("simulator-locked");
@@ -100,7 +100,7 @@ function renderStrategies(input, options) {
 }
 
 function renderDiagnostics(input) {
-  const d=model.diagnostics; const items=[["EARLIER SNAPSHOT",model.earlierAt],["LATEST SNAPSHOT",model.laterAt],["ACTUAL TIMESTAMP GAP",`${(model.actualElapsedDays*24).toFixed(2)} hours`],["MODELED ACCRUAL PERIOD",`${model.elapsedDays} day`],["EARLIER WALLETS",d.earlier],["LATEST WALLETS",d.later],["MATCHED",d.matched],["NEW WALLETS",d.newWallets],["MISSING",d.missing],["POSITIVE DELTA",d.positive],["ZERO DELTA",d.zero],["NEGATIVE DELTA",d.negative],["RAW MEDIAN / DAY",compact.format(d.rawMedian)],["WINSORIZED MEDIAN",compact.format(d.winsorMedian)],["P1 CUTOFF",compact.format(model.low)],["P99 CUTOFF",compact.format(model.high)]];
+  const d=model.diagnostics; const items=[["SNAPSHOTS USED",model.snapshotCount],["VELOCITY METHOD",model.velocityMethod],["EARLIEST SNAPSHOT",model.earlierAt],["LATEST SNAPSHOT",model.laterAt],["ACTUAL TIMESTAMP SPAN",`${(model.actualElapsedDays*24).toFixed(2)} hours`],["DAILY CREDIT CYCLES",model.elapsedDays],["FIRST WALLETS",d.earlier],["LATEST WALLETS",d.later],["MATCHED",d.matched],["NEW WALLETS",d.newWallets],["MISSING",d.missing],["POSITIVE TREND",d.positive],["ZERO TREND",d.zero],["NEGATIVE TREND",d.negative],["RAW MEDIAN / DAY",compact.format(d.rawMedian)],["WINSORIZED MEDIAN",compact.format(d.winsorMedian)],["P1 CUTOFF",compact.format(model.low)],["P99 CUTOFF",compact.format(model.high)]];
   $("diagnostics-content").innerHTML=`<div class="diagnostic-grid">${items.map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join('')}</div><p class="note">Selected method: ${input.mode} · ${input.statistic} · competitor velocity × ${input.competitorMultiplier}. Negative deltas are retained diagnostically and cleaned to zero for projection.</p>`;
   $("cohort-table").innerHTML=model.cohortStats.map((c)=>`<tr><td>${c.label}</td><td class="right">${fmt.format(c.count)}</td><td class="right">${fmt.format(c.active)}</td><td class="right">${fmt.format(c.median)}</td><td class="right">${fmt.format(c.mean)}</td><td class="right">${fmt.format(c.p25)}</td><td class="right">${fmt.format(c.p75)}</td><td class="right">${fmt.format(c.p90)}</td></tr>`).join('');
 }
@@ -108,7 +108,7 @@ function renderDiagnostics(input) {
 function update() {
   if (!model) return; const input=formValues();
   const nextWinsor = `${input.winsorLow}:${input.winsorHigh}`;
-  if (nextWinsor !== winsorSettings) { const earlierAt=model.earlierAt,laterAt=model.laterAt;model=buildVelocityModel(earlierRows,laterRows,input.winsorLow/100,input.winsorHigh/100);model.earlierAt=earlierAt;model.laterAt=laterAt;winsorSettings=nextWinsor; }
+  if (nextWinsor !== winsorSettings) { const earlierAt=model.earlierAt,laterAt=model.laterAt;model=buildMultiSnapshotVelocityModel(snapshotRows,input.winsorLow/100,input.winsorHigh/100);model.earlierAt=earlierAt;model.laterAt=laterAt;winsorSettings=nextWinsor; }
   if (document.activeElement?.name !== "competitorMultiplier") $("simulator-form").elements.competitorMultiplier.value=input.scenario;
   input.competitorMultiplier=Number($("simulator-form").elements.competitorMultiplier.value);
   const options=optionsFrom(input); currentResult=simulate(model,input,options);
@@ -126,7 +126,7 @@ document.querySelectorAll('[data-download]').forEach((button)=>button.addEventLi
 try {
   await loadExponentYtQuote();
   const manifest=await fetch('/data/snapshots.json').then(r=>r.json()); const snapshots=await Promise.all(manifest.map(async(item)=>({item,rows:parseCsv(await fetch(item.path).then(r=>r.text()))})));
-  snapshots.sort((a,b)=>new Date(a.rows[0].exportedAt)-new Date(b.rows[0].exportedAt)); earlierRows=snapshots.at(-2).rows;laterRows=snapshots.at(-1).rows;
-  model=buildVelocityModel(earlierRows,laterRows);model.earlierAt=earlierRows[0].exportedAt;model.laterAt=laterRows[0].exportedAt;
+  snapshots.sort((a,b)=>new Date(a.rows[0].exportedAt)-new Date(b.rows[0].exportedAt));snapshotRows=snapshots.map((snapshot)=>snapshot.rows);const earlierRows=snapshotRows[0],laterRows=snapshotRows.at(-1);
+  model=buildMultiSnapshotVelocityModel(snapshotRows);model.earlierAt=earlierRows[0].exportedAt;model.laterAt=laterRows[0].exportedAt;
   $("model-status").textContent=`${fmt.format(laterRows.length)} WALLETS`;update();
 } catch(error){$("error").textContent=`Unable to load simulator: ${error.message}`;$("error").hidden=false;$("model-status").textContent='ERROR';}
